@@ -1,28 +1,69 @@
 """Command-line interface for LocusLoom."""
 
 import argparse
+import shlex
+import sys
 from locusloom.seq_core import (
     calculate_gc_content,
     transcribe_dna,
     reverse_complement,
     translate_rna,
 )
+from locusloom.motif_finder import (
+    find_motif_positions,
+    scan_both_strands,
+)
 
 
-def main() -> None:
+WELCOME_BANNER = """============================================================
+  LocusLoom v0.3.0 — Bioinformatics Sequence Toolkit
+============================================================
+  Quick Commands (Aliases):
+    gc <seq>                  Calculate GC percentage
+    tr <seq>   (transcribe)   Transcribe coding DNA to mRNA
+    rc <seq>   (revcomp)      Get reverse complement (5'->3')
+    tl <seq>   (translate)    Translate mRNA to protein
+    mt <seq> <motif> [-b] [-z] (motif) Scan for motif hits
+
+  Flags for 'mt': -b (both strands), -z (0-based indices)
+  Type '<command> -h' for details, or 'exit' / 'q' to quit.
+============================================================"""
+
+
+def handle_gc(args: argparse.Namespace) -> None:
+    result = calculate_gc_content(args.sequence)
+    print(f"GC Content: {result:.2f}%")
+
+
+def handle_transcribe(args: argparse.Namespace) -> None:
+    print(transcribe_dna(args.sequence))
+
+
+def handle_revcomp(args: argparse.Namespace) -> None:
+    print(reverse_complement(args.sequence))
+
+
+def handle_translate(args: argparse.Namespace) -> None:
+    print(translate_rna(args.sequence))
+
+
+def handle_motif(args: argparse.Namespace) -> None:
+    one_based = not args.zero_based
+    if args.both:
+        hits = scan_both_strands(args.sequence, args.motif, one_based=one_based)
+        print(f"Forward (5'->3'): {hits['forward']}")
+        print(f"Reverse (5'->3'): {hits['reverse']}")
+    else:
+        hits = find_motif_positions(args.sequence, args.motif, one_based=one_based)
+        print(f"Positions: {hits}")
+
+
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="locusloom",
         description="LocusLoom: Command-line bioinformatics sequence analysis toolkit.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""Examples:
-  locusloom gc ATGTTTGGTTAA          Calculate GC percentage (25.00%%)
-  locusloom transcribe ATGTTTGGTTAA  Transcribe DNA to mRNA (AUGUUUGGUUAA)
-  locusloom revcomp ATGTTTGGTTAA     Get reverse complement (TTAACCAAACAT)
-  locusloom translate AUGUUUGGUUAA   Translate mRNA to protein (MFG)
-
-Run 'locusloom <command> --help' for details on a specific command.""",
     )
-
     subparsers = parser.add_subparsers(
         title="Available Commands",
         dest="command",
@@ -30,49 +71,66 @@ Run 'locusloom <command> --help' for details on a specific command.""",
         required=True,
     )
 
-    # 1. GC Content subcommand
-    gc_parser = subparsers.add_parser(
-        "gc",
-        help="Calculate GC percentage of a nucleotide sequence",
-        description="Calculate the percentage of Guanine (G) and Cytosine (C) bases.",
-    )
-    gc_parser.add_argument("sequence", type=str, help="Input DNA or RNA sequence (e.g., ATGCGC)")
+    # 1. GC Content
+    gc_p = subparsers.add_parser("gc", help="Calculate GC percentage")
+    gc_p.add_argument("sequence", type=str, help="Input DNA or RNA sequence")
+    gc_p.set_defaults(func=handle_gc)
 
-    # 2. Transcribe subcommand
-    transcribe_parser = subparsers.add_parser(
-        "transcribe",
-        help="Transcribe coding DNA (5'->3') into mRNA",
-        description="Convert a coding DNA strand into mRNA by replacing Thymine (T) with Uracil (U).",
-    )
-    transcribe_parser.add_argument("sequence", type=str, help="Input DNA sequence (e.g., ATGTTT)")
+    # 2. Transcribe
+    tr_p = subparsers.add_parser("transcribe", aliases=["trans", "tr"], help="Transcribe DNA to mRNA")
+    tr_p.add_argument("sequence", type=str, help="Input DNA sequence")
+    tr_p.set_defaults(func=handle_transcribe)
 
-    # 3. Reverse complement subcommand
-    revcomp_parser = subparsers.add_parser(
-        "revcomp",
-        help="Generate the reverse complement (5'->3') of DNA",
-        description="Compute the complementary DNA strand and reverse its orientation.",
-    )
-    revcomp_parser.add_argument("sequence", type=str, help="Input DNA sequence (e.g., ATGC)")
+    # 3. Reverse Complement
+    rc_p = subparsers.add_parser("revcomp", aliases=["rc"], help="Generate reverse complement")
+    rc_p.add_argument("sequence", type=str, help="Input DNA sequence")
+    rc_p.set_defaults(func=handle_revcomp)
 
-    # 4. Translate subcommand
-    translate_parser = subparsers.add_parser(
-        "translate",
-        help="Translate an mRNA sequence into an amino acid chain",
-        description="Translate mRNA codons into amino acids, halting at stop codons (UAA, UAG, UGA).",
-    )
-    translate_parser.add_argument("sequence", type=str, help="Input mRNA sequence (e.g., AUGUUUGGUUAA)")
+    # 4. Translate
+    tl_p = subparsers.add_parser("translate", aliases=["tl"], help="Translate mRNA to protein")
+    tl_p.add_argument("sequence", type=str, help="Input mRNA sequence")
+    tl_p.set_defaults(func=handle_translate)
 
-    args = parser.parse_args()
+    # 5. Motif Discovery
+    mt_p = subparsers.add_parser("motif", aliases=["mt", "find"], help="Scan for motif occurrences")
+    mt_p.add_argument("sequence", type=str, help="Target DNA or RNA sequence")
+    mt_p.add_argument("motif", type=str, help="Motif pattern to search for")
+    mt_p.add_argument("-b", "--both", action="store_true", help="Scan both forward and reverse strands")
+    mt_p.add_argument("-z", "--zero-based", action="store_true", help="Return 0-based Python indices")
+    mt_p.set_defaults(func=handle_motif)
 
-    if args.command == "gc":
-        result = calculate_gc_content(args.sequence)
-        print(f"GC Content: {result:.2f}%")
-    elif args.command == "transcribe":
-        print(transcribe_dna(args.sequence))
-    elif args.command == "revcomp":
-        print(reverse_complement(args.sequence))
-    elif args.command == "translate":
-        print(translate_rna(args.sequence))
+    return parser
+
+
+def main() -> None:
+    parser = build_parser()
+
+    # One-shot CLI mode: e.g., `locusloom mt ATATATA ATA -b`
+    if len(sys.argv) > 1:
+        args = parser.parse_args()
+        args.func(args)
+        return
+
+    # Interactive REPL mode when invoked with no arguments (`locusloom`)
+    print(WELCOME_BANNER)
+    while True:
+        try:
+            raw = input("\nlocusloom> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nExiting LocusLoom.")
+            break
+
+        if not raw:
+            continue
+        if raw.lower() in ("exit", "quit", "q"):
+            break
+
+        try:
+            args = parser.parse_args(shlex.split(raw))
+            args.func(args)
+        except SystemExit:
+            # Prevents argparse errors or `-h` from closing the interactive session
+            continue
 
 
 if __name__ == "__main__":
