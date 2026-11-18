@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.0] - 2026-11-18
+
+### Added
+- **IUPAC Degenerate Motif Scanning (`locusloom.motif_finder`)**: Added `iupac_to_regex`, `find_degenerate_motifs`, and `scan_degenerate_both_strands` to match ambiguous nucleotide codes (`R`, `Y`, `W`, `S`, `K`, `M`, `B`, `D`, `H`, `V`, `N`) across both DNA strands with overlapping lookahead support.
+- **Position Weight Matrix (PWM) Scoring**: Implemented `build_pwm` (log-odds scoring with configurable pseudocounts), `score_sequence_with_pwm`, and `scan_with_pwm` for sliding-window binding-site discovery.
+- **ORF & FASTA Parsing Utilities (`locusloom.seq_core`)**: Added `find_orfs` for Open Reading Frame detection and `read_fasta` for multi-record FASTA parsing.
+- **Interactive REPL Shell & Expanded CLI (`locusloom`)**: Added an interactive `locusloom>` shell mode alongside subcommand aliases (`tr`, `rc`, `tl`, `mt`, `orf`, `fa`) and the new `locusloom pwm` subcommand (`-m`, `-t`, `-z`).
+- **Citation Metadata**: Added `CITATION.cff` for standardized academic software citation.
+
+### Changed
+- **Upgraded `locusloom motif` CLI Subcommand**: Upgraded `handle_motif` to support both exact and IUPAC degenerate patterns seamlessly with `-b` (both strands) and `-z` (0-based indexing).
+- **Top-Level Package Exports (`locusloom.__init__`)**: Exported all Module 1 and Module 2 utilities under `__all__` and bumped `__version__` to `"0.4.0"`.
+
+---
+
 ## [0.3.0] - 2026-11-14
 
 ### Added

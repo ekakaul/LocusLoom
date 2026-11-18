@@ -2,18 +2,19 @@ cff-version: 1.2.0
 message: "If you use LocusLoom in your research or software, please cite it as below."
 type: software
 title: "LocusLoom"
-abstract: "A modular Python bioinformatics command-line toolkit for sequence analysis."
+abstract: "A modular Python bioinformatics command-line toolkit for sequence analysis and motif discovery."
 authors:
   - family-names: "Kaul"
     given-names: "Ekansh"
 repository-code: "https://github.com/ekanshkaul/LocusLoom"
 url: "https://github.com/ekanshkaul/LocusLoom"
-version: 0.3.0
-date-released: 2026-11-14
+version: 0.4.0
+date-released: 2026-11-18
 license: GPL-3.0
 keywords:
   - bioinformatics
   - genomics
   - sequence-analysis
+  - motif-discovery
   - python
   - cli
